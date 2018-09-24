@@ -38,16 +38,10 @@ def getid(obj):
     Abstracts the common pattern of allowing both an object or an object's ID
     (UUID) as a parameter when dealing with relationships.
     """
-    try:
-        if obj.uuid:
-            return obj.uuid
-    except AttributeError:  # nosec(cjschaef): 'obj' doesn't contain attribute
-        # 'uuid', return attribute 'id' or the 'obj'
-        pass
-    try:
-        return obj.id
-    except AttributeError:
-        return obj
+    if getattr(obj, 'uuid', None):
+        return obj.uuid
+    else:
+        return getattr(obj, 'id', obj)
 
 
 def filter_none(**kwargs):
@@ -356,6 +350,13 @@ class CrudManager(Manager):
         if params is None:
             return ''
         else:
+            # NOTE(spilla) Since the manager cannot take in a hyphen as a
+            # key in the kwarg, it is passed in with a _.  This needs to be
+            # replaced with a proper hyphen for the URL to work properly.
+            tags_params = ('tags_any', 'not_tags', 'not_tags_any')
+            for tag_param in tags_params:
+                if tag_param in params:
+                    params[tag_param.replace('_', '-')] = params.pop(tag_param)
             return '?%s' % urllib.parse.urlencode(params, doseq=True)
 
     def build_key_only_query(self, params_list):
